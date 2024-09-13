@@ -4,14 +4,21 @@ const int buttonPin1 = 13; // D13
 const int buttonPin2 = 12; // D12
 const int buttonPin3 = 14; // D14
 const int buttonPin4 = 27; // D27
-const int buttonPin5 = 26; // D26
+const int buttonPin5 = 26; // D26yy
 const int buttonPin6 = 25; // D25
 const int buttonPin7 = 33; // D33
 const int buttonPin8 = 32; // D32
-const int buttonPin9 = 4; // GPIO4 (instead of D34)
-const int buttonPin10 = 15; // GPIO15 (instead of D35)
+const int buttonPin9 = 4;  // D04
+const int buttonPin10 = 15; // D15
+// Rotary Encoder Pins
+const int rotaryEncoderPinCLK = 18;
+const int rotaryEncoderPinDT = 19;
+const int rotaryEncoderPinSW = 21;
 
 BleKeyboard bleKeyboard;
+
+int lastClkState;  // Variable to store the last state of rotary encoder CLK
+bool isMuted = false; // Variable to keep track of mute state
 
 void setup() {
   Serial.begin(115200);
@@ -22,16 +29,23 @@ void setup() {
   pinMode(buttonPin2, INPUT_PULLUP);
   pinMode(buttonPin3, INPUT_PULLUP);
   pinMode(buttonPin4, INPUT_PULLUP);
-  pinMode(buttonPin5, INPUT_PULLUP);
+  pinMode(buttonPin5, INPUT_PULLUP); // GPIO26 now used
   pinMode(buttonPin6, INPUT_PULLUP);
   pinMode(buttonPin7, INPUT_PULLUP);
   pinMode(buttonPin8, INPUT_PULLUP);
   pinMode(buttonPin9, INPUT_PULLUP);
   pinMode(buttonPin10, INPUT_PULLUP);
+
+  pinMode(rotaryEncoderPinCLK, INPUT_PULLUP);
+  pinMode(rotaryEncoderPinDT, INPUT_PULLUP);
+  pinMode(rotaryEncoderPinSW, INPUT_PULLUP);
+
+  lastClkState = digitalRead(rotaryEncoderPinCLK); // Initialize lastClkState
 }
 
 void loop() {
   if (bleKeyboard.isConnected()) {
+    // Check each button
     if (digitalRead(buttonPin1) == LOW) {
       bleKeyboard.press(KEY_LEFT_CTRL);
       bleKeyboard.press(KEY_LEFT_ALT);
@@ -121,6 +135,32 @@ void loop() {
       Serial.println("Button 10");
       delay(200);
     }
+
+    // Rotary encoder volume control
+    int clkState = digitalRead(rotaryEncoderPinCLK);
+    
+    if (clkState != lastClkState) {
+      // Check direction of rotation
+      if (digitalRead(rotaryEncoderPinDT) != clkState) {
+        Serial.println("Volume Up");
+        bleKeyboard.write(KEY_MEDIA_VOLUME_UP); // Volume up
+      } else {
+        Serial.println("Volume Down");
+        bleKeyboard.write(KEY_MEDIA_VOLUME_DOWN); // Volume down
+      }
+    }
+    
+    lastClkState = clkState; // Update lastClkState
+
+    // Rotary encoder button for mute/unmute
+    if (digitalRead(rotaryEncoderPinSW) == LOW) {
+      delay(50); // Debounce delay
+      if (digitalRead(rotaryEncoderPinSW) == LOW) { // Check again after debounce
+        Serial.println(isMuted ? "Unmuting" : "Muting");
+        bleKeyboard.write(KEY_MEDIA_MUTE);
+        isMuted = !isMuted;
+        delay(500); // Delay to prevent multiple triggers
+      }
+    }
   }
-  
 }
